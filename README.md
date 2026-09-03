@@ -6,63 +6,37 @@ AgentReq is an open-source research prototype for analyzing software requirement
 
 > Research prototype — not a safety-critical or production requirements-management system.
 
-## Research motivation
+## Current capabilities
 
-LLMs can make requirements engineering faster, but fluent output is not evidence of correctness. AgentReq therefore treats AI suggestions as **reviewable evidence-backed candidates**, not facts.
-
-### Current MVP
-
-- Requirement quality analysis
-  - vague terms
-  - missing actors
-  - missing acceptance criteria
-  - ambiguous modal language
-  - contradictory requirement pairs
-- Traceability candidate generation using TF-IDF/cosine similarity
+- Requirement quality analysis: vague terms, missing actors, acceptance criteria, weak modal language, contradictions
+- Deterministic TF-IDF/cosine traceability baseline
+- Evidence retrieval with ranked snippets and similarity scores
+- Evidence-grounded LLM analysis through a provider-agnostic HTTP interface
+- Offline deterministic fallback for development and tests
 - Confidence bands and explicit evidence snippets
 - Human review endpoint/UI: accept or reject candidate links
-- REST API with FastAPI
-- Lightweight browser dashboard (no build step)
-- Unit tests
-- Docker support
-
-### Planned research modules
-
-1. LLM/RAG-based requirement analysis
-2. Provenance-aware retrieval
-3. Requirement-to-design/code/test traceability graph
-4. Uncertainty calibration
-5. Robustness evaluation under noisy/incomplete requirements
-6. Human-in-the-loop experiments
-
-## Quick start
-
-```bash
-python -m venv .venv
-# Windows: .venv\\Scripts\\activate
-# Linux/macOS: source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
-
-Open `http://127.0.0.1:8000`.
+- FastAPI REST API, browser dashboard, Docker support, and automated tests
 
 ## API
 
 - `GET /health`
 - `POST /analyze`
+- `POST /analyze/llm` — accepts optional `artifacts` and `top_k` for evidence retrieval
 - `POST /trace`
 - `POST /review`
 
-Swagger docs: `/docs`
+Swagger: `/docs`
 
-Example:
+Example evidence-grounded request:
 
 ```json
 {
-  "requirements": [
-    {"id": "REQ-001", "text": "The system shall allow a librarian to reserve a room."}
-  ]
+  "requirement": {"id": "REQ-001", "text": "The system should export invoices quickly."},
+  "artifacts": [
+    {"id": "TEST-01", "type": "test", "text": "Verify invoice export completes within 2 seconds."},
+    {"id": "DOC-01", "type": "design", "text": "Invoice export uses asynchronous CSV generation."}
+  ],
+  "top_k": 2
 }
 ```
 
@@ -70,6 +44,15 @@ Example:
 
 **AI proposes → evidence supports → confidence communicates uncertainty → human decides.**
 
-## Roadmap
+The repository deliberately separates the deterministic baseline from the LLM layer. The offline fallback is not presented as an LLM result.
 
-See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+## Research roadmap
+
+1. Evidence-grounded LLM analysis
+2. Provenance-aware retrieval
+3. Requirement-to-design/code/test traceability graph
+4. Uncertainty calibration
+5. Robustness evaluation under noisy/incomplete requirements
+6. Human-in-the-loop experiments
+
+See [`docs/ROADMAP.md`](docs/ROADMAP.md) and [`docs/RESEARCH_NOTE.md`](docs/RESEARCH_NOTE.md).
