@@ -1,0 +1,5 @@
+artifact_id,text,type,project
+A1,Authentication module validates users and access tokens,code,smoke
+A2,API performance test verifies response time below two seconds,test,smoke
+A3,Navigation usability test checks that users can navigate easily,test,smoke
+A4,Database migration utility,code,smoke
