@@ -4,10 +4,11 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from .analysis import analyze_requirements, build_traceability
+from .llm import analyze_with_llm
 
 app = FastAPI(
     title="AgentReq",
-    version="0.1.0",
+    version="0.2.0",
     description="Trustworthy AI-assisted requirements engineering research prototype."
 )
 
@@ -29,6 +30,11 @@ class AnalyzeRequest(BaseModel):
     requirements: list[Requirement]
 
 
+class LLMAnalyzeRequest(BaseModel):
+    requirement: Requirement
+    evidence: list[str] = Field(default_factory=list)
+
+
 class TraceRequest(BaseModel):
     requirements: list[Requirement]
     artifacts: list[Artifact]
@@ -43,7 +49,7 @@ class ReviewRequest(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "agentreq", "version": "0.1.0"}
+    return {"status": "ok", "service": "agentreq", "version": "0.2.0"}
 
 
 @app.get("/")
@@ -54,6 +60,15 @@ def index():
 @app.post("/analyze")
 def analyze(payload: AnalyzeRequest):
     return {"results": analyze_requirements([r.model_dump() for r in payload.requirements])}
+
+
+@app.post("/analyze/llm")
+def analyze_llm(payload: LLMAnalyzeRequest):
+    return analyze_with_llm(
+        payload.requirement.id,
+        payload.requirement.text,
+        payload.evidence,
+    )
 
 
 @app.post("/trace")
