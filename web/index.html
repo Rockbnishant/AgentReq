@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AgentReq — Trustworthy Requirements Engineering</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:1050px;margin:0 auto;padding:28px;background:#f7f8fa;color:#17202a}
+.card{background:white;border:1px solid #ddd;border-radius:14px;padding:22px;margin:14px 0}
+textarea{width:100%;min-height:150px;box-sizing:border-box;font:inherit;padding:12px}
+button{padding:10px 16px;border:0;border-radius:9px;cursor:pointer}
+pre{white-space:pre-wrap;background:#f2f3f5;padding:14px;border-radius:10px}
+.badge{display:inline-block;padding:4px 8px;border-radius:8px;background:#eef2ff}
+</style>
+</head>
+<body>
+<h1>AgentReq</h1>
+<p><span class="badge">Research Prototype v0.1</span> Trustworthy AI-assisted requirements engineering.</p>
+
+<div class="card">
+<h2>1. Analyze requirements</h2>
+<p>Enter one requirement per line.</p>
+<textarea id="reqs">The system shall allow a librarian to reserve a room.
+The system should respond quickly to users.
+The application shall provide an easy and user-friendly search feature.</textarea>
+<button onclick="analyze()">Analyze</button>
+<pre id="analysis">Results will appear here.</pre>
+</div>
+
+<div class="card">
+<h2>2. Evidence-aware traceability</h2>
+<p>Provide requirements and engineering artifacts as JSON.</p>
+<textarea id="trace">{
+  "requirements":[
+    {"id":"REQ-001","text":"The system shall allow a librarian to reserve a room."}
+  ],
+  "artifacts":[
+    {"id":"TEST-001","type":"test","text":"Verify that a librarian can reserve a room."},
+    {"id":"CODE-001","type":"code","text":"reserve_room(librarian, room_id)"}
+  ]
+}</textarea>
+<button onclick="trace()">Build candidates</button>
+<pre id="traceout">Candidates will appear here.</pre>
+</div>
+
+<script>
+async function analyze(){
+ const requirements=document.getElementById('reqs').value.split('\n').filter(Boolean)
+ .map((text,i)=>({id:`REQ-${String(i+1).padStart(3,'0')}`,text}));
+ const r=await fetch('/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requirements})});
+ document.getElementById('analysis').textContent=JSON.stringify(await r.json(),null,2);
+}
+async function trace(){
+ const data=JSON.parse(document.getElementById('trace').value);
+ const r=await fetch('/trace',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+ document.getElementById('traceout').textContent=JSON.stringify(await r.json(),null,2);
+}
+</script>
+</body>
+</html>
