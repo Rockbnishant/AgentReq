@@ -12,3 +12,13 @@ jobs:
           python-version: "3.12"
       - run: pip install -r requirements.txt
       - run: PYTHONPATH=. pytest -q
+      - name: Run benchmark smoke tests
+        run: |
+          mkdir -p results/smoke
+          PYTHONPATH=. python benchmark/evaluate.py classification --input benchmark/smoke/requirements.csv --output results/smoke/classification.json
+          PYTHONPATH=. python benchmark/evaluate.py traceability --requirements benchmark/smoke/requirements_trace.csv --artifacts benchmark/smoke/artifacts.csv --gold benchmark/smoke/gold_links.csv --threshold 0.18 --top-k 3 --output results/smoke/traceability.json
+      - name: Upload smoke benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentreq-smoke-results
+          path: results/smoke/
