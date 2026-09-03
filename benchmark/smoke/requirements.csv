@@ -1,0 +1,5 @@
+requirement_id,text,label,project
+R1,The system shall authenticate users securely,security,smoke
+R2,The application shall provide a response within 2 seconds,performance,smoke
+R3,The system shall be easy for users to navigate,usability,smoke
+R4,The service shall remain available during normal operation,availability,smoke
