@@ -26,32 +26,21 @@ jobs:
           curl -L --fail --retry 3 'https://zenodo.org/records/268542/files/nfr.tar?download=1' -o /tmp/nfr.tar
           echo 'c3e68d6c9c84b44b5636383b353a522e  /tmp/nfr.tar' | md5sum -c -
 
-      - name: Extract dataset and locate labeled CSV
+      - name: Extract dataset and locate original ARFF/CSV
         run: |
           rm -rf /tmp/promise_extract
           mkdir -p /tmp/promise_extract
           tar -xf /tmp/nfr.tar -C /tmp/promise_extract
-          CSV_PATH=$(python - <<'PY'
-          from pathlib import Path
-          import csv
-          root = Path('/tmp/promise_extract')
-          for p in sorted(root.rglob('*.csv')):
-              try:
-                  with p.open(newline='', encoding='utf-8-sig', errors='ignore') as f:
-                      rows = csv.reader(f)
-                      header = next(rows, [])
-                  cols = {c.strip() for c in header}
-                  if {'INPUT', 'TYPE'} <= cols or {'input', 'type'} <= cols:
-                      print(p)
-                      break
-              except Exception:
-                  pass
-          else:
-              raise SystemExit('No CSV containing INPUT/TYPE labels found in nfr.tar')
-          PY
-          )
-          echo "Using dataset: $CSV_PATH"
-          PYTHONPATH=. python benchmark/prepare_promise.py --input "$CSV_PATH" --output data/promise_nfr.csv --archive /tmp/nfr.tar
+          echo 'Archive contents:'
+          find /tmp/promise_extract -maxdepth 4 -type f -print | sort
+          DATA_PATH=$(find /tmp/promise_extract -type f \( -iname 'nfr.arff' -o -iname '*.arff' -o -iname '*.csv' \) | sort | head -n 1)
+          if [ -z "$DATA_PATH" ]; then
+            echo 'No ARFF/CSV file found; archive listing:'
+            find /tmp/promise_extract -type f -print | sort
+            exit 1
+          fi
+          echo "Using dataset: $DATA_PATH"
+          PYTHONPATH=. python benchmark/prepare_promise.py --input "$DATA_PATH" --output data/promise_nfr.csv --archive /tmp/nfr.tar
 
       - name: Validate dataset size and labels
         run: |
@@ -66,7 +55,8 @@ jobs:
           print('class distribution =', dict(counts))
           if len(rows) != 625:
               raise SystemExit(f'Expected 625 PROMISE requirements, found {len(rows)}')
-          if set(counts) != {'F','A','L','LF','MN','O','PE','SC','SE','US','FT','PO'}:
+          expected = {'F','A','L','LF','MN','O','PE','SC','SE','US','FT','PO'}
+          if set(counts) != expected:
               raise SystemExit(f'Unexpected labels: {sorted(counts)}')
           PY
 
