@@ -1,0 +1,105 @@
+name: PROMISE NFR real benchmark
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'benchmark/**'
+      - '.github/workflows/promise-real.yml'
+      - 'requirements.txt'
+
+jobs:
+  promise-real:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Download and verify official PROMISE NFR archive
+        run: |
+          mkdir -p data/promise_raw results/promise
+          curl -L --fail --retry 3 'https://zenodo.org/records/268542/files/nfr.tar?download=1' -o /tmp/nfr.tar
+          echo 'c3e68d6c9c84b44b5636383b353a522e  /tmp/nfr.tar' | md5sum -c -
+
+      - name: Extract dataset and locate labeled CSV
+        run: |
+          rm -rf /tmp/promise_extract
+          mkdir -p /tmp/promise_extract
+          tar -xf /tmp/nfr.tar -C /tmp/promise_extract
+          CSV_PATH=$(python - <<'PY'
+          from pathlib import Path
+          import csv
+          root = Path('/tmp/promise_extract')
+          for p in sorted(root.rglob('*.csv')):
+              try:
+                  with p.open(newline='', encoding='utf-8-sig', errors='ignore') as f:
+                      rows = csv.reader(f)
+                      header = next(rows, [])
+                  cols = {c.strip() for c in header}
+                  if {'INPUT', 'TYPE'} <= cols or {'input', 'type'} <= cols:
+                      print(p)
+                      break
+              except Exception:
+                  pass
+          else:
+              raise SystemExit('No CSV containing INPUT/TYPE labels found in nfr.tar')
+          PY
+          )
+          echo "Using dataset: $CSV_PATH"
+          PYTHONPATH=. python benchmark/prepare_promise.py --input "$CSV_PATH" --output data/promise_nfr.csv --archive /tmp/nfr.tar
+
+      - name: Validate dataset size and labels
+        run: |
+          python - <<'PY'
+          import csv
+          from collections import Counter
+          p = 'data/promise_nfr.csv'
+          with open(p, newline='', encoding='utf-8') as f:
+              rows = list(csv.DictReader(f))
+          counts = Counter(r['label'] for r in rows)
+          print('n =', len(rows))
+          print('class distribution =', dict(counts))
+          if len(rows) != 625:
+              raise SystemExit(f'Expected 625 PROMISE requirements, found {len(rows)}')
+          if set(counts) != {'F','A','L','LF','MN','O','PE','SC','SE','US','FT','PO'}:
+              raise SystemExit(f'Unexpected labels: {sorted(counts)}')
+          PY
+
+      - name: Run real PROMISE baselines
+        run: |
+          PYTHONPATH=. python benchmark/promise_baselines.py \
+            --input data/promise_nfr.csv \
+            --output results/promise/baselines.json \
+            --folds 10 \
+            --seed 42
+
+      - name: Write provenance
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          h = hashlib.md5(Path('/tmp/nfr.tar').read_bytes()).hexdigest()
+          meta = {
+              'dataset': 'PROMISE NFR',
+              'source': 'https://zenodo.org/records/268542',
+              'doi': '10.5281/zenodo.268542',
+              'archive': 'nfr.tar',
+              'md5': h,
+              'expected_md5': 'c3e68d6c9c84b44b5636383b353a522e',
+              'requirements': 625,
+              'protocol': 'stratified 10-fold CV, seed 42',
+              'baselines': ['majority', 'TF-IDF + Logistic Regression', 'TF-IDF + Linear SVM']
+          }
+          Path('results/promise/provenance.json').write_text(json.dumps(meta, indent=2) + '\n')
+          PY
+
+      - name: Upload real benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentreq-promise-real-results
+          path: results/promise/
