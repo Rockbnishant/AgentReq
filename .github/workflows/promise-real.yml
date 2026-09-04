@@ -26,16 +26,16 @@ jobs:
           curl -L --fail --retry 3 'https://zenodo.org/records/268542/files/nfr.tar?download=1' -o /tmp/nfr.tar
           echo 'c3e68d6c9c84b44b5636383b353a522e  /tmp/nfr.tar' | md5sum -c -
 
-      - name: Extract dataset and locate original ARFF/CSV
+      - name: Extract dataset and select master PROMISE NFR file
         run: |
           rm -rf /tmp/promise_extract
           mkdir -p /tmp/promise_extract
           tar -xf /tmp/nfr.tar -C /tmp/promise_extract
           echo 'Archive contents:'
           find /tmp/promise_extract -maxdepth 4 -type f -print | sort
-          DATA_PATH=$(find /tmp/promise_extract -type f \( -iname 'nfr.arff' -o -iname '*.arff' -o -iname '*.csv' \) | sort | head -n 1)
+          DATA_PATH=$(find /tmp/promise_extract -type f -path '*/nfr/nfr.arff' | head -n 1)
           if [ -z "$DATA_PATH" ]; then
-            echo 'No ARFF/CSV file found; archive listing:'
+            echo 'Master PROMISE NFR nfr.arff not found; archive listing:'
             find /tmp/promise_extract -type f -print | sort
             exit 1
           fi
